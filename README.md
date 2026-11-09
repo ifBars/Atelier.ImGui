@@ -124,7 +124,7 @@ Run `artifacts/Cinder/Cinder.exe`. Keep the output folder together.
 - [Composition recipes for coding agents](docs/agent-guide.md)
 - [Validation notes and current limits](docs/validation.md)
 
-The standalone host requires Windows and OpenGL 3.3. Its native window is fixed-size and uses startup DPI scaling. The core is independent of that host. Live integration with the external reference application has not been tested.
+The standalone host requires Windows and OpenGL 3.3. Its native window is fixed-size and uses startup DPI scaling. The core is independent of that host.
 
 ## Credits and license
 
