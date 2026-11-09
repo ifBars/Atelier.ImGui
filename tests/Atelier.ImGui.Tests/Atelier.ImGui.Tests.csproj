@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../samples/Vanta/assets/**" Link="vanta/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../samples/Redline/assets/**" Link="redline/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="../../samples/StyledMenus/StyledMenus.csproj" />
+    <Compile Include="../../samples/Vanta/VantaMenu.cs" Link="VantaMenu.cs" />
+    <Compile Include="../../samples/Redline/RedlineMenu.cs" Link="RedlineMenu.cs" />
+    <Compile Include="../../samples/Cinder/CinderMenu.cs" Link="CinderMenu.cs" />
+    <None Include="../../samples/GameMenu/assets/signal.png" Link="assets/signal.png" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="../../src/Atelier.ImGui/Atelier.ImGui.csproj" />
+    <ProjectReference Include="../../src/Atelier.ImGui.Windows/Atelier.ImGui.Windows.csproj" />
+    <ProjectReference Include="../../samples/ExistingHost/ExistingHost.csproj" />
+    <Compile Include="../../samples/ServerManager/ServerManagerUi.cs" Link="ServerManagerUi.cs" />
+    <Compile Include="../../samples/GameMenu/NightshiftMenu.cs" Link="NightshiftMenu.cs" />
+  </ItemGroup>
+</Project>

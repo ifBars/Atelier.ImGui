@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../src/Atelier.ImGui/Atelier.ImGui.csproj" />
+  </ItemGroup>
+</Project>

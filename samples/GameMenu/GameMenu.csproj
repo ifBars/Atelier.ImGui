@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <PlatformTarget>x64</PlatformTarget>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationManifest>../ServerManager/app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="assets/signal.png" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="../../src/Atelier.ImGui.Windows/Atelier.ImGui.Windows.csproj" />
+  </ItemGroup>
+</Project>

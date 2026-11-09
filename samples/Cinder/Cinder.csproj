@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0-windows</TargetFramework><OutputType>WinExe</OutputType><PlatformTarget>x64</PlatformTarget><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ApplicationManifest>../ServerManager/app.manifest</ApplicationManifest></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Atelier.ImGui.Windows/Atelier.ImGui.Windows.csproj" />
+    <ProjectReference Include="../StyledMenus/StyledMenus.csproj" />
+  </ItemGroup>
+</Project>
