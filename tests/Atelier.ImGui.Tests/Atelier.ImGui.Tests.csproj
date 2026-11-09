@@ -13,6 +13,9 @@
     <Compile Include="../../samples/Vanta/VantaMenu.cs" Link="VantaMenu.cs" />
     <Compile Include="../../samples/Redline/RedlineMenu.cs" Link="RedlineMenu.cs" />
     <Compile Include="../../samples/Cinder/CinderMenu.cs" Link="CinderMenu.cs" />
+    <Compile Include="../../samples/Kestrel/KestrelMenu.cs" Link="KestrelMenu.cs" />
+    <Compile Include="../../samples/Kestrel/KestrelSettings.cs" Link="KestrelSettings.cs" />
+    <None Include="../../samples/Kestrel/assets/**" Link="kestrel/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../samples/GameMenu/assets/signal.png" Link="assets/signal.png" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="../../src/Atelier.ImGui/Atelier.ImGui.csproj" />
     <ProjectReference Include="../../src/Atelier.ImGui.Windows/Atelier.ImGui.Windows.csproj" />
