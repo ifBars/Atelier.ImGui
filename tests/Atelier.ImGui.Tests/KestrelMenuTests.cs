@@ -112,6 +112,10 @@ internal static class KestrelMenuTests
             h.Click(Center(menu, "esp.key"), Draw);
             Key(h, Draw, ImGuiKey.Backspace);
             Check(settings.EspKey == ImGuiKey.None, "Backspace did not clear the keybind.");
+            h.Click(Center(menu, "esp.key"), Draw);
+            ImGui.GetIO().AddMouseButtonEvent(3, true); h.Frame(Draw);
+            ImGui.GetIO().AddMouseButtonEvent(3, false); h.Frame(Draw);
+            Check(settings.EspKey == ImGuiKey.MouseX1, $"A side mouse button was not captured ({settings.EspKey}).");
             Check(menu.IsOpen, "Escape used by key capture or a popup closed the menu.");
 
             // Single-select dropdown through native keyboard selection.
@@ -157,7 +161,15 @@ internal static class KestrelMenuTests
             Check(menu.Profiles.Count == 4 && menu.ActiveProfile == "Scrims", "Create did not add and activate a profile.");
             h.Click(Center(menu, "profile.delete"), Draw);
             Check(menu.Profiles.Count == 3 && !menu.Profiles.Contains("Scrims"), "Delete did not remove the profile.");
-            Check(menu.IsOpen, "Escape used by a text field closed the menu.");
+            Check(menu.ActiveProfile is null && menu.HasUnsavedChanges && settings.Fov == 103,
+                $"Deleting the active profile attributed its values to {menu.ActiveProfile}.");
+            h.Click(Center(menu, "profile.name"), Draw);
+            foreach (var character in "Draft") ImGui.GetIO().AddInputCharacter(character);
+            h.Frame(Draw);
+            Check(ImGui.GetIO().WantTextInput, "The profile name field did not start editing.");
+            Key(h, Draw, ImGuiKey.Escape);
+            h.Frame(Draw);
+            Check(menu.IsOpen && !ImGui.GetIO().WantTextInput, "Escape in the profile name field closed the menu or kept editing.");
             h.Click(Center(menu, "profile.row.1"), Draw);
             h.Click(Center(menu, "profile.copy"), Draw);
             Check(KestrelSettings.TryImport(ImGui.GetClipboardText(), out var shared) && shared.Fov == 103 && shared.Skeleton,
@@ -192,9 +204,61 @@ internal static class KestrelMenuTests
             Settle(h, Draw);
             Key(h, Draw, ImGuiKey.Escape);
             Check(!menu.IsOpen, "Escape did not close the menu.");
+
+            // Host hotkey: closing during key capture must not leave the capture flag set.
+            void HostFrame() { menu.HandleMenuKey(); menu.Draw(fillViewport: true); }
+            menu.IsOpen = true;
+            Settle(h, HostFrame);
+            h.Click(Center(menu, "menu.key"), HostFrame);
+            Check(menu.IsCapturingKey, "Menu key chip did not start listening.");
+            menu.IsOpen = false;
+            Check(!menu.IsCapturingKey, "Closing the menu left key capture active.");
+            Key(h, HostFrame, settings.MenuKey);
+            Check(menu.IsOpen, "HandleMenuKey did not reopen the menu.");
+            settings.MenuKey = ImGuiKey.None;
+            Key(h, HostFrame, ImGuiKey.Insert);
+            Check(menu.IsOpen, "An unbound menu key toggled the menu.");
+            menu.IsOpen = false;
             h.Frame(Draw);
             Check(ImGui.GetDrawData().TotalVtxCount == 0, "A closed Kestrel menu submitted geometry.");
         }
+    }
+
+    /// <summary>Host-supplied or imported values the controls cannot show must be repaired or rejected, never crash.</summary>
+    public static void Validation()
+    {
+        Check(!KestrelSettings.TryImport("kestrel1;Material=99", out _), "An out-of-range option index was imported.");
+        Check(!KestrelSettings.TryImport("kestrel1;RadarCorner=-1", out _), "A negative option index was imported.");
+        Check(!KestrelSettings.TryImport("kestrel1;EspKey=NamedKey_END", out _), "A key sentinel was imported.");
+        Check(!KestrelSettings.TryImport("kestrel1;EspKey=ModCtrl", out _), "A modifier flag was imported as a key.");
+        Check(KestrelSettings.TryImport("kestrel1;EspKey=MouseX2;ItemKey=None;Material=3", out var valid) &&
+            valid.EspKey == ImGuiKey.MouseX2 && valid.ItemKey == ImGuiKey.None && valid.Material == 3, "Valid keys or options were rejected.");
+        var roundTrip = new KestrelSettings { Fov = 101.5f, Material = 2, ItemFilter = [false, true, false, true, false] };
+        Check(KestrelSettings.TryImport(roundTrip.Export(), out var restored) && restored.SameAs(roundTrip), "Export did not round-trip.");
+
+        var a = new KestrelSettings();
+        var b = a.Clone();
+        b.BoxColor.X += .001f; // Inside one 8-bit step: a rounded comparison would miss it.
+        Check(!a.SameAs(b) && a.Differences(b).Single().Field == nameof(KestrelSettings.BoxColor),
+            "Differences and SameAs disagree about a small color change.");
+
+        using var h = new HeadlessHarness(1, ui => KestrelMenu.ConfigureFonts(ui, Assets));
+        ImGui.GetIO().DisplaySize = KestrelMenu.CanvasSize;
+        var settings = new KestrelSettings
+        {
+            ItemFilter = [true], RadarItems = [], Material = 99, RadarCorner = -4, EspKey = ImGuiKey.NamedKey_END
+        };
+        var menu = new KestrelMenu(h.Ui, settings);
+        void Draw() => menu.Draw(fillViewport: true);
+        foreach (var page in new[] { "visuals.players", "visuals.world", "radar.display", "radar.markers", "config.interface" })
+        {
+            menu.SelectedPage = page;
+            Settle(h, Draw);
+        }
+        Check(settings.ItemFilter.Length == KestrelSettings.ItemKinds.Length && settings.ItemFilter[0] &&
+            settings.RadarItems.Length == KestrelSettings.ItemKinds.Length, "Short category arrays were not repaired.");
+        Check(settings.Material == KestrelSettings.Materials.Length - 1 && settings.RadarCorner == 0 && settings.EspKey == ImGuiKey.None,
+            "Invalid option indices or keys were not repaired.");
     }
 
     private static void Settle(HeadlessHarness h, Action draw)

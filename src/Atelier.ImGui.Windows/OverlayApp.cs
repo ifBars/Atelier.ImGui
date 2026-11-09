@@ -145,6 +145,9 @@ public sealed class OverlayApp : IDisposable
             io.AddMouseButtonEvent(0, mouse.IsButtonPressed(MouseButton.Left));
             io.AddMouseButtonEvent(1, mouse.IsButtonPressed(MouseButton.Right));
             io.AddMouseButtonEvent(2, mouse.IsButtonPressed(MouseButton.Middle));
+            // Side buttons map to ImGuiKey.MouseX1/MouseX2, so keybind controls can capture them.
+            io.AddMouseButtonEvent(3, mouse.IsButtonPressed(MouseButton.Button4));
+            io.AddMouseButtonEvent(4, mouse.IsButtonPressed(MouseButton.Button5));
         }
         ImGui.NewFrame();
         menu.Draw(fillViewport: true);

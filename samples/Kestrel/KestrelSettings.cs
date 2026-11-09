@@ -57,12 +57,59 @@ public sealed class KestrelSettings
     /// <summary>The key a host can use to show or hide the menu. The menu itself does not install a hotkey.</summary>
     public ImGuiKey MenuKey = ImGuiKey.Insert;
 
+    /// <summary>Labels for the item categories indexed by <see cref="ItemFilter"/> and <see cref="RadarItems"/>.</summary>
+    public static readonly string[] ItemKinds = ["Weapons", "Ammo", "Medical", "Armor", "Loot"];
+    public static readonly string[] BoxStyles = ["Corners", "Full"];
+    public static readonly string[] Materials = ["Flat", "Shaded", "Glow", "Wireframe"];
+    public static readonly string[] Aspects = ["Native", "16:10", "4:3", "5:4"];
+    public static readonly string[] Shoulders = ["Left", "Right"];
+    public static readonly string[] RadarShapes = ["Circle", "Square"];
+    public static readonly string[] RadarCorners = ["Top left", "Top right", "Bottom left", "Bottom right"];
+
+    /// <summary>Keys a keybind chip can capture: ImGui's named keys, excluding mouse wheels and reserved slots.</summary>
+    public static IReadOnlyList<ImGuiKey> BindableKeys { get; } = Enum.GetValues<ImGuiKey>()
+        .Where(k => k >= ImGuiKey.NamedKey_BEGIN && k < ImGuiKey.NamedKey_END && k is not (ImGuiKey.MouseWheelX or ImGuiKey.MouseWheelY) &&
+            !k.ToString().StartsWith("Reserved", StringComparison.Ordinal))
+        .Distinct().ToArray();
+
+    /// <summary>True for <see cref="ImGuiKey.None"/> (unbound) and for every key in <see cref="BindableKeys"/>.</summary>
+    public static bool IsBindable(ImGuiKey key) => key == ImGuiKey.None || BindableSet.Contains(key);
+
+    /// <summary>The option labels for an index field such as <c>Material</c>, or null for other fields.</summary>
+    public static string[]? OptionsFor(string field) => Choices.GetValueOrDefault(field);
+
+    /// <summary>A deep copy; the arrays are copied too.</summary>
     public KestrelSettings Clone()
     {
         var copy = (KestrelSettings)MemberwiseClone();
         copy.ItemFilter = [.. ItemFilter];
         copy.RadarItems = [.. RadarItems];
         return copy;
+    }
+
+    /// <summary>
+    /// Repairs values the controls cannot display: wrong-length category arrays are resized (keeping their leading values),
+    /// option indices are clamped to their lists, and unknown keys become unbound. The menu calls this before drawing.
+    /// </summary>
+    public void Normalize()
+    {
+        ItemFilter = Resized(ItemFilter);
+        RadarItems = Resized(RadarItems);
+        foreach (var field in Fields)
+        {
+            if (field.FieldType == typeof(int) && OptionsFor(field.Name) is { } options)
+                field.SetValue(this, Math.Clamp((int)field.GetValue(this)!, 0, options.Length - 1));
+            else if (field.FieldType == typeof(ImGuiKey) && !IsBindable((ImGuiKey)field.GetValue(this)!))
+                field.SetValue(this, ImGuiKey.None);
+        }
+
+        static bool[] Resized(bool[]? flags)
+        {
+            if (flags?.Length == ItemKinds.Length) return flags;
+            var resized = new bool[ItemKinds.Length];
+            flags?.AsSpan(0, Math.Min(flags.Length, resized.Length)).CopyTo(resized);
+            return resized;
+        }
     }
 
     /// <summary>Copies values in place, including array contents, so existing references remain current.</summary>
@@ -78,33 +125,28 @@ public sealed class KestrelSettings
         }
     }
 
-    public bool SameAs(KestrelSettings other)
+    /// <summary>True when every field matches exactly. Arrays compare by contents.</summary>
+    public bool SameAs(KestrelSettings other) => !Differences(other).Any();
+
+    /// <summary>Fields whose values differ exactly, with this instance's value first. Arrays compare by contents.</summary>
+    public IEnumerable<(string Field, object? Current, object? Other)> Differences(KestrelSettings other)
     {
         ArgumentNullException.ThrowIfNull(other);
         foreach (var field in Fields)
         {
             var a = field.GetValue(this);
             var b = field.GetValue(other);
-            if (a is bool[] left && b is bool[] right ? !left.AsSpan().SequenceEqual(right) : !Equals(a, b)) return false;
-        }
-        return true;
-    }
-
-    /// <summary>Fields whose values differ, with this instance's value first. Arrays compare by contents.</summary>
-    public IEnumerable<(string Field, object Current, object Other)> Differences(KestrelSettings other)
-    {
-        ArgumentNullException.ThrowIfNull(other);
-        foreach (var field in Fields)
-        {
-            var a = field.GetValue(this)!;
-            var b = field.GetValue(other)!;
-            if (Format(a) != Format(b)) yield return (field.Name, a, b);
+            if (!FieldEquals(a, b)) yield return (field.Name, a, b);
         }
     }
 
     /// <summary>A single-line text form for sharing through the clipboard. Unknown names are ignored on import.</summary>
     public string Export() => Prefix + string.Join(";", Fields.Select(f => f.Name + "=" + Format(f.GetValue(this)!)));
 
+    /// <summary>
+    /// Parses <see cref="Export"/> text. Fields that are absent keep their defaults; any present field with an invalid value
+    /// (including an option index outside its list or a key that cannot be bound) rejects the whole text.
+    /// </summary>
     public static bool TryImport(string? text, out KestrelSettings settings)
     {
         settings = new KestrelSettings();
@@ -114,13 +156,22 @@ public sealed class KestrelSettings
         {
             var parts = pair.Split('=', 2);
             if (parts.Length != 2 || !fields.TryGetValue(parts[0], out var field)) continue;
-            if (!TryParse(field.FieldType, parts[1], field.GetValue(settings), out var value)) return false;
+            if (!TryParse(field, parts[1], field.GetValue(settings), out var value)) return false;
             field.SetValue(settings, value);
         }
         return true;
     }
 
     private const string Prefix = "kestrel1;";
+    private static readonly HashSet<ImGuiKey> BindableSet = [.. BindableKeys];
+    private static readonly Dictionary<string, string[]> Choices = new(StringComparer.Ordinal)
+    {
+        [nameof(BoxStyle)] = BoxStyles, [nameof(Material)] = Materials, [nameof(Aspect)] = Aspects,
+        [nameof(Shoulder)] = Shoulders, [nameof(RadarShape)] = RadarShapes, [nameof(RadarCorner)] = RadarCorners
+    };
+
+    private static bool FieldEquals(object? a, object? b) =>
+        a is bool[] left && b is bool[] right ? left.AsSpan().SequenceEqual(right) : Equals(a, b);
 
     private static string Format(object value) => value switch
     {
@@ -132,13 +183,15 @@ public sealed class KestrelSettings
         _ => value.ToString()!
     };
 
-    private static bool TryParse(Type type, string text, object? current, out object? value)
+    private static bool TryParse(FieldInfo field, string text, object? current, out object? value)
     {
+        var type = field.FieldType;
         value = null;
         if (type == typeof(bool) && text is "0" or "1") value = text == "1";
         else if (type == typeof(float) && float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) && float.IsFinite(f)) value = f;
-        else if (type == typeof(int) && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i)) value = i;
-        else if (type == typeof(ImGuiKey) && Enum.TryParse<ImGuiKey>(text, out var key) && Enum.IsDefined(key)) value = key;
+        else if (type == typeof(int) && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i) &&
+            (OptionsFor(field.Name) is not { } options || i >= 0 && i < options.Length)) value = i;
+        else if (type == typeof(ImGuiKey) && Enum.TryParse<ImGuiKey>(text, out var key) && Enum.IsDefined(key) && IsBindable(key)) value = key;
         else if (type == typeof(Vector4) && text.Length == 8 && uint.TryParse(text, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var rgba))
             value = new Vector4((rgba >> 24) / 255f, (rgba >> 16 & 255) / 255f, (rgba >> 8 & 255) / 255f, (rgba & 255) / 255f);
         else if (type == typeof(bool[]) && current is bool[] flags && text.Length == flags.Length && text.All(c => c is '0' or '1'))

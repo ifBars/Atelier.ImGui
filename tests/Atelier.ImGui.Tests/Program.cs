@@ -68,6 +68,7 @@ var passed = 0;
 Test("Cinder compact controls, profiles and scaled gallery", StyledMenuTests.Cinder);
 Test("Kestrel controls, keybinds, profiles, clipboard and host hooks", KestrelMenuTests.Controls);
 Test("Kestrel pages and popups at 100%, 125% and 150%", KestrelMenuTests.Gallery);
+Test("Kestrel repairs or rejects invalid host and imported values", KestrelMenuTests.Validation);
 Test("Vanta pages, native controls and scaled gallery", StyledMenuTests.Vanta);
 Test("Redline pages, native controls and scaled gallery", StyledMenuTests.Redline);
 Test("Animation timing, retargeting and reduced motion", EffectsTests.Motion);

@@ -11,25 +11,15 @@ namespace Kestrel;
 /// </summary>
 public sealed class KestrelMenu : IMenuSurface
 {
+    /// <summary>The fixed layout size in design units. Multiply by the UI scale for the host's client area.</summary>
     public static Vector2 CanvasSize => new(760, 500);
 
     private const float Rail = 56, HeaderBottom = 52, FooterTop = 470, ContentTop = 66, Gap = 12, Column = 330;
     private const float RowHeight = 28, ControlWidth = 150, CardPadding = 14;
     private static readonly float LeftColumn = Rail + 16, RightColumn = Rail + 16 + Column + Gap;
 
-    private static readonly string[] BoxStyles = ["Corners", "Full"];
-    private static readonly string[] Materials = ["Flat", "Shaded", "Glow", "Wireframe"];
-    private static readonly string[] ItemKinds = ["Weapons", "Ammo", "Medical", "Armor", "Loot"];
-    private static readonly string[] Aspects = ["Native", "16:10", "4:3", "5:4"];
-    private static readonly string[] Shoulders = ["Left", "Right"];
-    private static readonly string[] Shapes = ["Circle", "Square"];
-    private static readonly string[] Corners = ["Top left", "Top right", "Bottom left", "Bottom right"];
     private static readonly Vector4[] AccentPresets =
         [UiTheme.Rgb(0x8E7CF8), UiTheme.Rgb(0xF0806E), UiTheme.Rgb(0x5CD1A0), UiTheme.Rgb(0x67B2F0), UiTheme.Rgb(0xE5B24E)];
-    private static readonly ImGuiKey[] BindableKeys = Enum.GetValues<ImGuiKey>()
-        .Where(k => k >= ImGuiKey.NamedKey_BEGIN && k < ImGuiKey.NamedKey_END && k is not (ImGuiKey.MouseWheelX or ImGuiKey.MouseWheelY) &&
-            !k.ToString().StartsWith("Reserved", StringComparison.Ordinal))
-        .Distinct().ToArray();
 
     private sealed record Page(string Id, string Label, Action Draw);
     private sealed record Category(string Id, string Label, Page[] Pages);
@@ -47,6 +37,7 @@ public sealed class KestrelMenu : IMenuSurface
     private readonly List<Profile> profiles = [];
     private readonly Dictionary<string, UiItem> items = [];
     private int page, selectedProfile, activeProfile;
+    private bool open = true;
     private string newProfile = "";
     private string? listening;
     private string feedback = "";
@@ -56,6 +47,7 @@ public sealed class KestrelMenu : IMenuSurface
     private float cardX, cardW, rowY;
     private bool escapeConsumed;
 
+    /// <summary>Create once per ImGui context. The menu restyles <paramref name="ui"/>, so give it a dedicated instance.</summary>
     public KestrelMenu(Ui ui, KestrelSettings? settings = null)
     {
         ArgumentNullException.ThrowIfNull(ui);
@@ -93,21 +85,40 @@ public sealed class KestrelMenu : IMenuSurface
         ApplyTheme();
     }
 
+    /// <summary>The caller-owned values this menu edits. Profile loads copy into this instance rather than replacing it.</summary>
     public KestrelSettings Settings { get; }
-    public bool IsOpen { get; set; } = true;
+
+    /// <summary>Whether <see cref="Draw"/> renders. Closing (from the host, the close button or Escape) cancels key capture.</summary>
+    public bool IsOpen
+    {
+        get => open;
+        set
+        {
+            open = value;
+            if (!value) listening = null;
+        }
+    }
+
+    /// <summary>Raised when the header drag handle is pressed, so a native host can move its window.</summary>
     public event Action? DragStarted;
     /// <summary>True while a keybind chip is waiting for input; hosts should suspend their own hotkeys.</summary>
     public bool IsCapturingKey => listening is not null;
+    /// <summary>Stable page IDs in navigation order, such as <c>visuals.players</c>.</summary>
     public IReadOnlyList<string> PageIds => pages.Select(p => p.Id).ToArray();
+    /// <summary>Profile names in list order.</summary>
     public IReadOnlyList<string> Profiles => profiles.Select(p => p.Name).ToArray();
-    public string ActiveProfile => profiles[activeProfile].Name;
-    public bool HasUnsavedChanges => !Settings.SameAs(profiles[activeProfile].Snapshot);
+    /// <summary>The profile the current values were last loaded from or saved to; null after that profile is deleted.</summary>
+    public string? ActiveProfile => activeProfile >= 0 ? profiles[activeProfile].Name : null;
+    /// <summary>True when the current values differ from the active profile, or no profile is active.</summary>
+    public bool HasUnsavedChanges => activeProfile < 0 || !Settings.SameAs(profiles[activeProfile].Snapshot);
+    /// <summary>The most recent action message shown in the footer.</summary>
     public string Feedback => feedback;
     /// <summary>Screen bounds of controls submitted in the last frame, keyed by stable control ID. Intended for tests and tools.</summary>
     public IReadOnlyDictionary<string, UiItem> Items => items;
     /// <summary>The control that had keyboard focus in the last frame, if any.</summary>
     public string? FocusedControl { get; private set; }
 
+    /// <summary>The visible page's stable ID. Setting an unknown ID throws.</summary>
     public string SelectedPage
     {
         get => pages[page].Id;
@@ -128,9 +139,22 @@ public sealed class KestrelMenu : IMenuSurface
         ui.Fonts = new(Add("Geist-Medium.ttf", 13), Add("Geist-SemiBold.ttf", 15), Add("GeistMono-Medium.ttf", 11));
     }
 
+    /// <summary>
+    /// Toggles <see cref="IsOpen"/> when <see cref="KestrelSettings.MenuKey"/> is pressed. Call it once per frame, between
+    /// NewFrame and Render, if the host has no hotkey of its own. Unbound keys and active key capture are ignored.
+    /// </summary>
+    public void HandleMenuKey()
+    {
+        var key = Settings.MenuKey;
+        if (!IsCapturingKey && key != ImGuiKey.None && KestrelSettings.IsBindable(key) && ImGui.IsKeyPressed(key, false))
+            IsOpen = !IsOpen;
+    }
+
+    /// <summary>Submits the menu inside the host's current frame. With <paramref name="fillViewport"/>, it covers the main viewport.</summary>
     public void Draw(bool fillViewport = false)
     {
         if (!IsOpen) return;
+        Settings.Normalize();
         items.Clear();
         FocusedControl = null;
         ApplyTheme();
@@ -252,7 +276,7 @@ public sealed class KestrelMenu : IMenuSurface
         Label(x, middle, "KESTREL", Face.Mono, Dim);
         x += Measure("KESTREL", Face.Mono) + 10;
         Label(x, middle, "/", Face.Mono, Dim);
-        Label(x + 14, middle, ActiveProfile.ToUpperInvariant(), Face.Mono, t.Muted);
+        Label(x + 14, middle, ActiveProfile?.ToUpperInvariant() ?? "NO PROFILE", Face.Mono, ActiveProfile is null ? Dim : t.Muted);
 
         var age = ImGui.GetTime() - feedbackTime;
         string status;
@@ -313,7 +337,7 @@ public sealed class KestrelMenu : IMenuSurface
             {
                 Swatch("esp.box.color", ref s.BoxColor);
                 Check("esp.box", "Bounding box", ref s.Box);
-                using (ui.Disabled(!s.Box)) SegmentedRow("esp.style", "Box style", ref s.BoxStyle, BoxStyles);
+                using (ui.Disabled(!s.Box)) SegmentedRow("esp.style", "Box style", ref s.BoxStyle, KestrelSettings.BoxStyles);
                 Check("esp.names", "Name", ref s.Names);
                 Check("esp.health", "Health bar", ref s.Health);
                 Check("esp.distance", "Distance", ref s.Distance);
@@ -336,7 +360,7 @@ public sealed class KestrelMenu : IMenuSurface
             Check("chams.hidden", "Through walls", ref s.ChamsHidden);
             using (ui.Disabled(!s.Chams && !s.ChamsHidden))
             {
-                Combo("chams.material", "Material", ref s.Material, Materials);
+                Combo("chams.material", "Material", ref s.Material, KestrelSettings.Materials);
                 Slider("chams.opacity", "Opacity", ref s.ChamsOpacity, 0, 100, "%");
                 Check("chams.glow", "Glow outline", ref s.Glow);
             }
@@ -361,7 +385,7 @@ public sealed class KestrelMenu : IMenuSurface
             Check("items.enabled", "Enabled", ref s.Items);
             using (ui.Disabled(!s.Items))
             {
-                Multi("items.filter", "Categories", s.ItemFilter, ItemKinds);
+                Multi("items.filter", "Categories", s.ItemFilter, KestrelSettings.ItemKinds);
                 Slider("items.range", "Max distance", ref s.ItemDistance, 10, 300, " m");
                 Check("items.rarity", "Rarity colors", ref s.RarityColors);
             }
@@ -398,7 +422,7 @@ public sealed class KestrelMenu : IMenuSurface
         {
             Slider("fov", "World", ref s.Fov, 60, 120, "°");
             Slider("fov.viewmodel", "Viewmodel", ref s.ViewmodelFov, 54, 90, "°");
-            Combo("aspect", "Aspect ratio", ref s.Aspect, Aspects);
+            Combo("aspect", "Aspect ratio", ref s.Aspect, KestrelSettings.Aspects);
         });
         Card("Zoom", LeftColumn, ref y, () =>
         {
@@ -414,7 +438,7 @@ public sealed class KestrelMenu : IMenuSurface
             using (ui.Disabled(!s.ThirdPerson))
             {
                 Slider("third.distance", "Distance", ref s.CameraDistance, 1, 6, " m", decimals: 1);
-                SegmentedRow("third.shoulder", "Shoulder", ref s.Shoulder, Shoulders);
+                SegmentedRow("third.shoulder", "Shoulder", ref s.Shoulder, KestrelSettings.Shoulders);
                 Check("third.collision", "Camera collision", ref s.Collision);
             }
         });
@@ -466,7 +490,7 @@ public sealed class KestrelMenu : IMenuSurface
             Check("radar.enabled", "Enabled", ref s.Radar);
             using (ui.Disabled(!s.Radar))
             {
-                SegmentedRow("radar.shape", "Shape", ref s.RadarShape, Shapes);
+                SegmentedRow("radar.shape", "Shape", ref s.RadarShape, KestrelSettings.RadarShapes);
                 Slider("radar.zoom", "Zoom", ref s.RadarZoom, .5f, 3, "x", decimals: 1);
                 Slider("radar.opacity", "Opacity", ref s.RadarOpacity, 20, 100, "%");
                 Check("radar.rotate", "Rotate with view", ref s.RotateRadar);
@@ -476,7 +500,7 @@ public sealed class KestrelMenu : IMenuSurface
         Card("Placement", LeftColumn, ref y, () =>
         {
             using var disabled = ui.Disabled(!s.Radar);
-            Combo("radar.corner", "Anchor", ref s.RadarCorner, Corners);
+            Combo("radar.corner", "Anchor", ref s.RadarCorner, KestrelSettings.RadarCorners);
             Slider("radar.size", "Size", ref s.RadarSize, 120, 320, " px");
             Slider("radar.margin", "Margin", ref s.RadarMargin, 0, 64, " px");
         }, fill: true);
@@ -495,7 +519,7 @@ public sealed class KestrelMenu : IMenuSurface
             Swatch("radar.team.color", ref s.TeamColor);
             Check("radar.team", "Teammates", ref s.RadarTeam);
             Check("radar.objectives", "Objectives", ref s.Objectives);
-            Multi("radar.items", "Items", s.RadarItems, ItemKinds);
+            Multi("radar.items", "Items", s.RadarItems, KestrelSettings.ItemKinds);
             Slider("radar.marker", "Marker size", ref s.MarkerSize, 2, 8, " px");
         });
         Card("Labels", LeftColumn, ref y, () =>
@@ -604,19 +628,15 @@ public sealed class KestrelMenu : IMenuSurface
         return text.Replace("fov", "FOV").Replace("Esp", "ESP");
     }
 
-    private static string Display(string field, object value) => value switch
+    private static string Display(string field, object? value) => value switch
     {
         bool b => b ? "ON" : "OFF",
         float f => f.ToString(MathF.Abs(f) < 10 && f != MathF.Round(f) ? "0.0#" : "0"),
-        int i => (field switch
-        {
-            "BoxStyle" => BoxStyles, "Material" => Materials, "Aspect" => Aspects, "Shoulder" => Shoulders,
-            "RadarShape" => Shapes, "RadarCorner" => Corners, _ => null
-        }) is { } names && i >= 0 && i < names.Length ? names[i].ToUpperInvariant() : i.ToString(),
+        int i => KestrelSettings.OptionsFor(field) is { } names && i >= 0 && i < names.Length ? names[i].ToUpperInvariant() : i.ToString(),
         ImGuiKey key => key == ImGuiKey.None ? "NONE" : KeyLabel(key),
         Vector4 c => $"#{(int)(c.X * 255):X2}{(int)(c.Y * 255):X2}{(int)(c.Z * 255):X2}",
         bool[] flags => $"{flags.Count(x => x)}/{flags.Length}",
-        _ => value.ToString() ?? ""
+        _ => value?.ToString() ?? ""
     };
 
     private void DrawInterface()
@@ -715,7 +735,9 @@ public sealed class KestrelMenu : IMenuSurface
         if (profiles.Count == 1) return;
         var name = profiles[index].Name;
         profiles.RemoveAt(index);
-        if (activeProfile > index || activeProfile == profiles.Count) activeProfile = Math.Max(0, activeProfile - 1);
+        // Deleting the active profile leaves the current values unassociated rather than attributing them to another profile.
+        if (activeProfile == index) activeProfile = -1;
+        else if (activeProfile > index) activeProfile--;
         selectedProfile = Math.Min(index, profiles.Count - 1);
         Notify("Deleted " + name);
     }
@@ -993,7 +1015,7 @@ public sealed class KestrelMenu : IMenuSurface
         var changed = false;
         if (listening == key)
         {
-            foreach (var candidate in BindableKeys)
+            foreach (var candidate in KestrelSettings.BindableKeys)
             {
                 if (!ImGui.IsKeyPressed(candidate, false)) continue;
                 if (candidate is not (ImGuiKey.Escape or ImGuiKey.MouseLeft))

@@ -1,5 +1,7 @@
 # Validation of the initial implementation
 
+Kestrel review follow-up (2026-11-09, same Linux setup). Fixes: the docs no longer poll `ImGuiKey.None`, and `KestrelMenu.HandleMenuKey()` skips unbound keys. Closing the menu cancels key capture. Deleting the active profile leaves values unassociated. `KestrelSettings.Normalize()` repairs short category arrays, out-of-range option indices and unbindable keys before drawing. Import rejects those values, and `Differences` now uses the same exact comparison as `SameAs`. A new `Validation` group, plus additions to `Controls` (M4 capture, Escape inside the name field, close during capture, host hotkey), pass in the Linux harness alongside the existing groups. `OverlayApp` now forwards mouse buttons 4 and 5; that adapter change is compile-checked only, because the Windows/OpenGL host was not run.
+
 Kestrel addition (2026-11-09, Linux x64, .NET SDK 8.0.133, ImGui.NET 1.91.6.1 with its bundled `linux-x64` cimgui). Unlike the entries below, this was **not** run on Windows:
 
 - Release solution build with `-p:EnableWindowsTargeting=true`: the core, Windows adapter, every sample including `Kestrel`, and the existing-host example built with zero warnings. The test executable did not build because this SDK lacks the WindowsDesktop targets. Its full source set, including the new Kestrel tests and `--host --kestrel` wiring, compiled with zero warnings in a separate compile-only project that used `System.Drawing.Common` in place of WinForms.

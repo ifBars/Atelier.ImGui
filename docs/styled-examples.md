@@ -35,7 +35,7 @@ A 760×500 violet-on-ink layout built for density: 28-unit rows, labels on the l
 
 Controls are native ImGui items with custom drawing on top: transparent buttons for checkboxes, segmented controls, profile rows and keybind chips; `SliderFloat` for sliders (the drawn track uses ImGui's own input span, so clicks land where the knob is drawn); `BeginCombo` for single- and multi-select dropdowns; `ColorEdit4` for color chips; and `InputTextWithHint` for profile names. Keyboard navigation, focus, popups and disabled scopes therefore behave like ImGui. Disabled options dim under their master option.
 
-- **Keybind chips**: click, then press a key or the right/middle mouse button. Escape cancels, Backspace or Delete clears, and clicking elsewhere cancels. `IsCapturingKey` tells the host to suspend its own hotkeys while a chip is listening. Config → Interface lists every bind in one card.
+- **Keybind chips**: click, then press a key or the right, middle or side (M4/M5) mouse button. Escape cancels, Backspace or Delete clears, and clicking elsewhere cancels. `IsCapturingKey` tells the host to suspend its own hotkeys while a chip is listening. Config → Interface lists every bind in one card.
 - **Profiles**: in-memory snapshots with load, save, create (Enter or Create), delete and reset. The footer shows the active profile and whether values have changed since it was saved. Before loading another profile, the right card lists the values that would change. Copy and Import use the clipboard and a single-line `kestrel1;` text format.
 - **Radar preview**: shape, zoom, opacity, rotation, the FOV cone (driven by Camera → World FOV), marker colors and size, item filters and distance or name tags all redraw the preview.
 - **Motion**: rail/tab indicators, check fills, segmented pills and hovers animate in 0.12–0.2 s, and pages fade in over 0.14 s. The radar sweep is the only continuous motion. Reduce motion stops it and settles transitions.
@@ -58,11 +58,13 @@ var settings = new KestrelSettings();            // Your state: the menu edits t
 var menu = new KestrelMenu(ui, settings);
 
 // Each frame, between your NewFrame() and Render():
-if (!menu.IsCapturingKey && ImGui.IsKeyPressed(settings.MenuKey, false)) menu.IsOpen = !menu.IsOpen;
+menu.HandleMenuKey(); // Optional: toggles IsOpen with settings.MenuKey; skips an unbound key and active key capture.
 menu.Draw(fillViewport: true);
 ```
 
-Size the host client area to `KestrelMenu.CanvasSize * hostScale`. Subscribe to `DragStarted` if your native window should move when the header is dragged. Profile loads copy values into the same `KestrelSettings` instance, including array contents, so references your application holds remain current.
+If the host already owns a show/hide hotkey, skip `HandleMenuKey` and suspend that hotkey while `menu.IsCapturingKey` is true. Never pass `ImGuiKey.None` to `ImGui.IsKeyPressed`; clearing a keybind sets it to `None`.
+
+Size the host client area to `KestrelMenu.CanvasSize * hostScale`. Subscribe to `DragStarted` if your native window should move when the header is dragged. Profile loads copy values into the same `KestrelSettings` instance, including array contents, so references your application holds remain current. Before each frame the menu calls `Settings.Normalize()`: category arrays with the wrong length are resized, option indices are clamped, and keys that cannot be bound are cleared. Imported clipboard text with such values is rejected outright. Deleting the active profile leaves the current values unassociated (the footer shows *No profile*) until you save or load one.
 
 ### References for Kestrel
 
