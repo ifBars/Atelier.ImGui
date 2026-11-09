@@ -50,8 +50,14 @@ Each example uses the same core library. All controls operate on local demo stat
 | <img src="docs/images/redline.png" alt="Redline motorsport menu example" width="480" /> | <img src="docs/images/effects.png" alt="Nightshift particle and image effects example" width="480" /> |
 | Red and ivory, condensed type, automotive photography. [Source](samples/Redline/RedlineMenu.cs) | Particle backgrounds, transitions, image fitting. [Source](samples/GameMenu/NightshiftMenu.cs) |
 
+| Kestrel | Kestrel radar |
+| :--- | :--- |
+| <img src="docs/images/kestrel.png" alt="Kestrel compact violet menu with icon rail, tabs and settings cards" width="480" /> | <img src="docs/images/kestrel-radar.png" alt="Kestrel radar page with a live preview" width="480" /> |
+| Compact violet/ink, keybind chips, multi-select, profiles. [Source](samples/Kestrel/KestrelMenu.cs) | Live radar preview driven by the settings beside it. [Settings](samples/Kestrel/KestrelSettings.cs) |
+
 ```powershell
 dotnet run --project samples/Cinder -c Release
+dotnet run --project samples/Kestrel -c Release
 dotnet run --project samples/Redline -c Release
 dotnet run --project samples/GameMenu -c Release -- --effects
 ```
@@ -130,4 +136,4 @@ The standalone host requires Windows and OpenGL 3.3. Its native window is fixed-
 
 Built on [Dear ImGui](https://github.com/ocornut/imgui) through [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET). The [ktsu suite](https://github.com/ktsu-dev/ImGuiApp) informed the approach to scoped styling and separate host infrastructure.
 
-Atelier's code is [MIT licensed](LICENSE). Photos and bundled fonts retain their own terms; credits and font licenses are included with the [Vanta assets](samples/Vanta/assets/ASSET-CREDITS.md) and [Redline assets](samples/Redline/assets/ASSET-CREDITS.md). Reference screenshots used during design are excluded from the repository.
+Atelier's code is [MIT licensed](LICENSE). Photos and bundled fonts retain their own terms; credits and font licenses are included with the [Vanta assets](samples/Vanta/assets/ASSET-CREDITS.md), [Redline assets](samples/Redline/assets/ASSET-CREDITS.md) and [Kestrel assets](samples/Kestrel/assets/ASSET-CREDITS.md). Reference screenshots used during design are excluded from the repository.

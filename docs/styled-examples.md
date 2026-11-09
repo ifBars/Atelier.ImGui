@@ -25,6 +25,54 @@ dotnet publish samples/Cinder -c Release -r win-x64 --self-contained true -o art
 dotnet run --project tests/Atelier.ImGui.Tests -c Release -- --host --cinder
 ```
 
+## Kestrel / compact paid-menu layout
+
+```powershell
+dotnet run --project samples/Kestrel -c Release
+```
+
+A 760×500 violet-on-ink layout built for density: 28-unit rows, labels on the left, every control right-aligned to one 150-unit column, and uppercase Geist Mono captions on cards. Navigation has exactly two levels: an icon rail picks the category (Visuals, Camera, Radar, Config), and the header shows that category's tabs with a sliding underline. The rail remembers each category's last tab. Each column's last card extends to the footer, so every page sits on the same grid.
+
+Controls are native ImGui items with custom drawing on top: transparent buttons for checkboxes, segmented controls, profile rows and keybind chips; `SliderFloat` for sliders (the drawn track uses ImGui's own input span, so clicks land where the knob is drawn); `BeginCombo` for single- and multi-select dropdowns; `ColorEdit4` for color chips; and `InputTextWithHint` for profile names. Keyboard navigation, focus, popups and disabled scopes therefore behave like ImGui. Disabled options dim under their master option.
+
+- **Keybind chips**: click, then press a key or the right/middle mouse button. Escape cancels, Backspace or Delete clears, and clicking elsewhere cancels. `IsCapturingKey` tells the host to suspend its own hotkeys while a chip is listening. Config → Interface lists every bind in one card.
+- **Profiles**: in-memory snapshots with load, save, create (Enter or Create), delete and reset. The footer shows the active profile and whether values have changed since it was saved. Before loading another profile, the right card lists the values that would change. Copy and Import use the clipboard and a single-line `kestrel1;` text format.
+- **Radar preview**: shape, zoom, opacity, rotation, the FOV cone (driven by Camera → World FOV), marker colors and size, item filters and distance or name tags all redraw the preview.
+- **Motion**: rail/tab indicators, check fills, segmented pills and hovers animate in 0.12–0.2 s, and pages fade in over 0.14 s. The radar sweep is the only continuous motion. Reduce motion stops it and settles transitions.
+- **Escape**: closes the menu (Config → Interface → *Close with Escape*), except when a popup, text field or key capture used the key.
+
+Geist and Geist Mono (SIL OFL 1.1) are bundled; see the [asset credits](../samples/Kestrel/assets/ASSET-CREDITS.md). Fonts are loaded at the exact sizes they are drawn at (13/15/11 units, rounded to the DPI), so text stays crisp at 100%, 125% and 150%. Without `ConfigureFonts`, the menu uses the host's current font at proportional sizes.
+
+- [Menu source](../samples/Kestrel/KestrelMenu.cs) and [settings](../samples/Kestrel/KestrelSettings.cs)
+- Captures: [players](images/kestrel.png), [radar](images/kestrel-radar.png)
+
+### Using Kestrel in an existing host
+
+Kestrel depends only on the core library and ImGui.NET; it doesn't need `StyledMenus` or unsafe code. Copy `KestrelMenu.cs` and `KestrelSettings.cs`, plus the `assets` folder if you want the bundled fonts.
+
+```csharp
+// Once, after the host has chosen its UI scale. Give Kestrel its own Ui: it sets the theme and ReducedMotion.
+var ui = new Ui(scale: hostScale);
+KestrelMenu.ConfigureFonts(ui, assetDirectory); // Optional; call before the host uploads its font atlas.
+var settings = new KestrelSettings();            // Your state: the menu edits this instance in place.
+var menu = new KestrelMenu(ui, settings);
+
+// Each frame, between your NewFrame() and Render():
+if (!menu.IsCapturingKey && ImGui.IsKeyPressed(settings.MenuKey, false)) menu.IsOpen = !menu.IsOpen;
+menu.Draw(fillViewport: true);
+```
+
+Size the host client area to `KestrelMenu.CanvasSize * hostScale`. Subscribe to `DragStarted` if your native window should move when the header is dragged. Profile loads copy values into the same `KestrelSettings` instance, including array contents, so references your application holds remain current.
+
+### References for Kestrel
+
+| Local reference | Source | Design observations used |
+| --- | --- | --- |
+| `unity-uitk-showcase.png` | [sinanata/unity-ui-toolkit-design-system](https://github.com/sinanata/unity-ui-toolkit-design-system) `docs/screenshots/showcase.png` (commit `a2089d5`) | Small uppercase card captions, label-left/control-right setting rows, segmented pills with a raised active segment, restrained single-accent palette |
+| Cinder, Vanta and Nightshift in this repository | Existing samples | Dense two-column cards and color-chip rows (Cinder), icon rail with an animated selection (Vanta), sliding tab underline and page transition (Nightshift) |
+
+The screenshot is stored in the ignored `artifacts/design-references/` directory and was opened and inspected before implementation. It is not bundled. Game-UI galleries such as gameuidatabase.com, interfaceingame.com and Dribbble could not be reached from the network-restricted build environment, so they were not used. Kestrel's composition, labels, icons, brand mark and radar are original draw commands.
+
 ## Vanta / orbital toolkit
 
 ```powershell
@@ -86,6 +134,7 @@ The samples use fixed logical canvases and support 100%/150% scaling. Match the 
 ## Local distributions
 
 ```powershell
+dotnet publish samples/Kestrel -c Release -r win-x64 --self-contained true -o artifacts/Kestrel
 dotnet publish samples/Vanta -c Release -r win-x64 --self-contained true -o artifacts/Vanta
 dotnet publish samples/Redline -c Release -r win-x64 --self-contained true -o artifacts/Redline
 ```
@@ -94,9 +143,10 @@ Keep each output folder intact, including assets and font licenses.
 
 ## Checks
 
-The main behavior executable now covers both menus at 100% and 150%, including navigation, switches, slider changes, profile save/load or reset/apply, drag notification and close. Every page has a software-rendered capture. Actual OpenGL host captures use:
+The main behavior executable covers Kestrel at 100%, 125% and 150% (every page, both popups, and the input checks listed in [validation](validation.md)), and covers Vanta and Redline at 100% and 150%, including navigation, switches, slider changes, profile save/load or reset/apply, drag notification and close. Every page has a software-rendered capture. Actual OpenGL host captures use:
 
 ```powershell
+dotnet run --project tests/Atelier.ImGui.Tests -c Release -- --host --kestrel
 dotnet run --project tests/Atelier.ImGui.Tests -c Release -- --host --vanta
 dotnet run --project tests/Atelier.ImGui.Tests -c Release -- --host --redline
 ```
