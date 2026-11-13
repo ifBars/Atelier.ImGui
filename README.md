@@ -50,6 +50,11 @@ Each example uses the same core library. All controls operate on local demo stat
 | <img src="docs/images/redline.png" alt="Redline motorsport menu example" width="480" /> | <img src="docs/images/effects.png" alt="Nightshift particle and image effects example" width="480" /> |
 | Red and ivory, condensed type, automotive photography. [Source](samples/Redline/RedlineMenu.cs) | Particle backgrounds, transitions, image fitting. [Source](samples/GameMenu/NightshiftMenu.cs) |
 
+| Mist | Mist display |
+| :--- | :--- |
+| <img src="docs/images/mist.png" alt="Mist minimal menu, overview page" width="480" /> | <img src="docs/images/mist-display.png" alt="Mist display page with accent selector" width="480" /> |
+| Borderless off-white, hairline rules, pill controls, switchable accent. [Source](samples/Mist/MistMenu.cs) | Segmented accent control and sliders. Captured on Linux with a fallback font. |
+
 | Kestrel | Kestrel radar |
 | :--- | :--- |
 | <img src="docs/images/kestrel.png" alt="Kestrel compact violet menu with icon rail, tabs and settings cards" width="480" /> | <img src="docs/images/kestrel-radar.png" alt="Kestrel radar page with a live preview" width="480" /> |

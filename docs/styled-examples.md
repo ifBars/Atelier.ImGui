@@ -34,6 +34,7 @@ dotnet run --project samples/Mist -c Release
 A 780×520 borderless layout in warm off-white with a single switchable accent (Indigo, Teal, Rose). Navigation is plain text with an animated dot, controls are separated by hairline rules, and switches, sliders, a segmented control and pill buttons all use native ImGui input. Overview, Display and Input pages hold local demo state; disabled controls reject input when their master option is off. It uses the default host font, so no font files or images are needed.
 
 - [Menu source](../samples/Mist/MistMenu.cs)
+- Captures: [overview](images/mist.png), [display](images/mist-display.png), [input](images/mist-input.png) (headless rasterized, Linux, Inter font; not a Windows run)
 
 To use it with an existing host, include the menu class plus the shared sample helpers, construct `new MistMenu(ui)` once and call `Draw(fillViewport: true)` in the existing frame. Use `MistMenu.CanvasSize` multiplied by the UI scale for the client area. Run `dotnet run --project tests/Atelier.ImGui.Tests -c Release -- --host --mist` for the native OpenGL capture.
 
