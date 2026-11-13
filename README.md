@@ -113,7 +113,15 @@ dotnet build Atelier.ImGui.sln -c Release
 dotnet run --project tests/Atelier.ImGui.Tests -c Release
 ```
 
-The test executable checks native ImGui input, scoped styling, animation timing, image fitting, and example layouts at multiple DPI scales. It writes captures to `artifacts/screenshots/`. Use `-- --host --cinder` for a bounded Windows/OpenGL check. `dotnet test` does not run this executable.
+The test executable checks native ImGui input, scoped styling, animation timing, image fitting, and example layouts at multiple DPI scales. It writes captures to `artifacts/screenshots/`. Use `-- --host --cinder` for a bounded native OpenGL check. `dotnet test` does not run this executable.
+
+Both commands also work on Linux x64, where the harness uses an installed Inter, Noto Sans, Liberation Sans or DejaVu Sans in place of Segoe UI. The native check needs an X display and OpenGL 3.3; without a desktop, run it under Xvfb with Mesa:
+
+```bash
+xvfb-run -a -s "-screen 0 1600x1000x24" dotnet run --project tests/Atelier.ImGui.Tests -c Release -- --host --kestrel
+```
+
+Linux captures are for reviewing layout. Fonts differ from Windows (Cinder falls back from Tahoma to the host font), so they do not replace a Windows run. The sample executables still target Windows.
 
 To make a self-contained Windows x64 demo:
 
@@ -131,7 +139,7 @@ Run `artifacts/Cinder/Cinder.exe`. Keep the output folder together.
 - [Composition recipes for coding agents](docs/agent-guide.md)
 - [Validation notes and current limits](docs/validation.md)
 
-The standalone host requires Windows and OpenGL 3.3. Its native window is fixed-size and uses startup DPI scaling. The core is independent of that host.
+The standalone host is supported on Windows and requires OpenGL 3.3; it also runs on Linux/X11 at 100% scale unless `OverlayOptions.Scale` is set. Its native window is fixed-size and uses startup DPI scaling. The core is independent of that host.
 
 ## Credits and license
 

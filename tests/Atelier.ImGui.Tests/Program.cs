@@ -4,9 +4,6 @@ using AtelierTests;
 using ImGuiNET;
 using ServerManager;
 using Atelier.Windows;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
 
 if (args.Contains("--host"))
 {
@@ -50,19 +47,14 @@ if (args.Contains("--host"))
                         pixels[y * width + x] = unchecked((int)0xFF000000) | bytes[offset] << 16 | bytes[offset + 1] << 8 | bytes[offset + 2];
                     }
                 Check(pixels.Distinct().Take(100).Count() == 100, "OpenGL frame is empty.");
-                using var image = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-                var bits = image.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, image.PixelFormat);
-                for (var y = 0; y < height; y++) Marshal.Copy(pixels, y * width, bits.Scan0 + y * bits.Stride, width);
-                image.UnlockBits(bits);
-                Directory.CreateDirectory("artifacts/screenshots");
-                image.Save(cinder ? "artifacts/screenshots/cinder-native.png" : mist ? "artifacts/screenshots/mist-native.png" : kestrel ? "artifacts/screenshots/kestrel-native.png" : vanta ? "artifacts/screenshots/vanta-native.png" : redline ? "artifacts/screenshots/redline-native.png" : game ? args.Contains("--effects") ? "artifacts/screenshots/nightshift-effects-native.png" : "artifacts/screenshots/nightshift-native.png" : "artifacts/screenshots/windows-host.png", ImageFormat.Png);
+                Png.Save(cinder ? "artifacts/screenshots/cinder-native.png" : mist ? "artifacts/screenshots/mist-native.png" : kestrel ? "artifacts/screenshots/kestrel-native.png" : vanta ? "artifacts/screenshots/vanta-native.png" : redline ? "artifacts/screenshots/redline-native.png" : game ? args.Contains("--effects") ? "artifacts/screenshots/nightshift-effects-native.png" : "artifacts/screenshots/nightshift-native.png" : "artifacts/screenshots/native-host.png", width, height, pixels);
                 captured = true;
             }
         });
     host.Run();
     Throws<ObjectDisposedException>(() => hostImages!.CreateRgba(1, 1, new byte[4]));
     Check(captured, "Host closed without a framebuffer capture.");
-    Console.WriteLine("PASS Windows/OpenGL host rendered 45 frames and closed cleanly.");
+    Console.WriteLine($"PASS {(OperatingSystem.IsWindows() ? "Windows" : OperatingSystem.IsLinux() ? "Linux" : "Native")}/OpenGL host rendered 45 frames and closed cleanly.");
     return;
 }
 

@@ -1,8 +1,7 @@
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Atelier;
+using Atelier.Windows;
 using ImGuiNET;
 
 namespace AtelierTests;
@@ -25,10 +24,12 @@ internal sealed unsafe class HeadlessHarness : IDisposable
         io.DeltaTime = 1f / 60;
         io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
         io.NativePtr->IniFilename = null;
-        var fonts = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
-        var body = io.Fonts.AddFontFromFileTTF(Path.Combine(fonts, "segoeui.ttf"), 16 * scale);
-        var heading = io.Fonts.AddFontFromFileTTF(Path.Combine(fonts, "seguisb.ttf"), 25 * scale);
-        var small = io.Fonts.AddFontFromFileTTF(Path.Combine(fonts, "segoeui.ttf"), 13 * scale);
+        // Segoe UI on Windows, an installed sans-serif elsewhere; text metrics therefore differ between platforms.
+        var font = HostFonts.Find() ?? throw new InvalidOperationException(
+            "No UI font found. Install Inter, Noto Sans, Liberation Sans or DejaVu Sans to run the harness.");
+        var body = io.Fonts.AddFontFromFileTTF(font.Regular, 16 * scale);
+        var heading = io.Fonts.AddFontFromFileTTF(font.Bold, 25 * scale);
+        var small = io.Fonts.AddFontFromFileTTF(font.Regular, 13 * scale);
         io.NativePtr->FontDefault = body.NativePtr;
         Ui = new(null, scale) { Fonts = new(body, heading, small) };
         configureFonts?.Invoke(Ui);
@@ -97,12 +98,7 @@ internal sealed unsafe class HeadlessHarness : IDisposable
                 }
             }
         }
-        using var image = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-        var bits = image.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, image.PixelFormat);
-        for (var y = 0; y < height; y++) Marshal.Copy(pixels, y * width, bits.Scan0 + y * bits.Stride, width);
-        image.UnlockBits(bits);
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        image.Save(path, ImageFormat.Png);
+        Png.Save(path, width, height, pixels);
     }
 
     private void Rasterize(ImDrawVertPtr a, ImDrawVertPtr b, ImDrawVertPtr c, Vector4 clip, int width, int height, int[] pixels,
