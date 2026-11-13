@@ -15,12 +15,14 @@ if (args.Contains("--host"))
     var vanta = args.Contains("--vanta");
     var redline = args.Contains("--redline");
     var cinder = args.Contains("--cinder");
+    var mist = args.Contains("--mist");
     var kestrel = args.Contains("--kestrel");
     OverlayImages? hostImages = null;
     using var host = new OverlayApp("Atelier runtime check", (ui, images) =>
     {
         hostImages = images;
         if (cinder) return (IMenuSurface)new Cinder.CinderMenu(ui);
+        if (mist) return new Mist.MistMenu(ui);
         if (kestrel) return new Kestrel.KestrelMenu(ui);
         if (vanta) return (IMenuSurface)new Vanta.VantaMenu(ui, images.Load(Path.Combine(AppContext.BaseDirectory, "vanta", "nebula.jpg")));
         if (redline) return new Redline.RedlineMenu(ui, images.Load(Path.Combine(AppContext.BaseDirectory, "redline", "porsche.jpg")));
@@ -34,7 +36,7 @@ if (args.Contains("--host"))
         new OverlayOptions
         {
             ExitAfterFrames = 45,
-            Size = cinder ? Cinder.CinderMenu.CanvasSize : kestrel ? Kestrel.KestrelMenu.CanvasSize : vanta ? new(960, 620) : redline ? new(900, 600) : game ? new(800, 550) : new(960, 720),
+            Size = cinder ? Cinder.CinderMenu.CanvasSize : mist ? Mist.MistMenu.CanvasSize : kestrel ? Kestrel.KestrelMenu.CanvasSize : vanta ? new(960, 620) : redline ? new(900, 600) : game ? new(800, 550) : new(960, 720),
             ConfigureFonts = cinder ? Cinder.CinderMenu.ConfigureFonts : kestrel ? ui => Kestrel.KestrelMenu.ConfigureFonts(ui, Path.Combine(AppContext.BaseDirectory, "kestrel")) : vanta ? ui => StyledMenus.StyledMenuBase.ConfigureDisplayFont(ui, Path.Combine(AppContext.BaseDirectory, "vanta", "Rajdhani-SemiBold.ttf")) :
                 redline ? ui => StyledMenus.StyledMenuBase.ConfigureDisplayFont(ui, Path.Combine(AppContext.BaseDirectory, "redline", "BarlowCondensed-Bold.ttf")) : null,
             CaptureFrame = (width, height, bytes) =>
@@ -53,7 +55,7 @@ if (args.Contains("--host"))
                 for (var y = 0; y < height; y++) Marshal.Copy(pixels, y * width, bits.Scan0 + y * bits.Stride, width);
                 image.UnlockBits(bits);
                 Directory.CreateDirectory("artifacts/screenshots");
-                image.Save(cinder ? "artifacts/screenshots/cinder-native.png" : kestrel ? "artifacts/screenshots/kestrel-native.png" : vanta ? "artifacts/screenshots/vanta-native.png" : redline ? "artifacts/screenshots/redline-native.png" : game ? args.Contains("--effects") ? "artifacts/screenshots/nightshift-effects-native.png" : "artifacts/screenshots/nightshift-native.png" : "artifacts/screenshots/windows-host.png", ImageFormat.Png);
+                image.Save(cinder ? "artifacts/screenshots/cinder-native.png" : mist ? "artifacts/screenshots/mist-native.png" : kestrel ? "artifacts/screenshots/kestrel-native.png" : vanta ? "artifacts/screenshots/vanta-native.png" : redline ? "artifacts/screenshots/redline-native.png" : game ? args.Contains("--effects") ? "artifacts/screenshots/nightshift-effects-native.png" : "artifacts/screenshots/nightshift-native.png" : "artifacts/screenshots/windows-host.png", ImageFormat.Png);
                 captured = true;
             }
         });
@@ -66,6 +68,7 @@ if (args.Contains("--host"))
 
 var passed = 0;
 Test("Cinder compact controls, profiles and scaled gallery", StyledMenuTests.Cinder);
+Test("Mist pages, native controls and scaled gallery", StyledMenuTests.Mist);
 Test("Kestrel controls, keybinds, profiles, clipboard and host hooks", KestrelMenuTests.Controls);
 Test("Kestrel pages and popups at 100%, 125% and 150%", KestrelMenuTests.Gallery);
 Test("Kestrel repairs or rejects invalid host and imported values", KestrelMenuTests.Validation);

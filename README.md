@@ -57,6 +57,7 @@ Each example uses the same core library. All controls operate on local demo stat
 
 ```powershell
 dotnet run --project samples/Cinder -c Release
+dotnet run --project samples/Mist -c Release
 dotnet run --project samples/Kestrel -c Release
 dotnet run --project samples/Redline -c Release
 dotnet run --project samples/GameMenu -c Release -- --effects
