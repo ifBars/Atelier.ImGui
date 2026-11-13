@@ -1,8 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Description>Optional standalone Windows overlay host for Atelier.ImGui.</Description>
+    <Description>Optional standalone OpenGL overlay host for Atelier.ImGui. Built for Windows; also runs on Linux/X11 for runtime captures.</Description>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Atelier.ImGui.Tests" />
