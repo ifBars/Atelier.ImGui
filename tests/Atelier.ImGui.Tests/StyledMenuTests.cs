@@ -52,6 +52,44 @@ internal static class StyledMenuTests
         }
     }
 
+    public static void Mist()
+    {
+        foreach (var scale in new[] { 1f, 1.5f })
+        {
+            using var h = new HeadlessHarness(scale);
+            ImGui.GetIO().DisplaySize = global::Mist.MistMenu.CanvasSize * scale;
+            var menu = new global::Mist.MistMenu(h.Ui);
+            void Draw() => menu.Draw(fillViewport: true);
+            foreach (var page in new[] { "Overview", "Display", "Input" })
+            {
+                menu.SelectedPage = page;
+                for (var i = 0; i < 18; i++) h.Frame(Draw);
+                h.Capture($"artifacts/screenshots/mist-{page.ToLowerInvariant()}{(scale == 1 ? "" : "-150")}.png");
+            }
+            h.Click(menu.Items["nav.Overview"].Center, Draw);
+            for (var i = 0; i < 18; i++) h.Frame(Draw);
+            Check(menu.SelectedPage == "Overview", "Mist navigation failed.");
+            h.Click(menu.Items["enabled"].Center, Draw);
+            Check(!menu.Enabled, "Mist switch did not mutate state.");
+            var disabled = menu.Volume;
+            var volume = menu.Items["volume"];
+            h.Click(Vector2.Lerp(volume.Minimum, volume.Maximum, .1f), Draw);
+            Check(menu.Volume == disabled, "Disabled Mist slider accepted input.");
+            h.Click(menu.Items["enabled"].Center, Draw);
+            h.Click(Vector2.Lerp(volume.Minimum, volume.Maximum, .9f), Draw);
+            Check(menu.Volume > 80, "Mist slider did not receive native input.");
+            menu.SelectedPage = "Display";
+            for (var i = 0; i < 18; i++) h.Frame(Draw);
+            h.Click(menu.Items["accent.1"].Center, Draw);
+            Check(menu.AccentIndex == 1, "Mist segmented control failed.");
+            h.Click(menu.Items["save"].Center, Draw);
+            Check(menu.Feedback == "Saved to this preview", "Mist save action did not run.");
+            h.Click(menu.Items["reset"].Center, Draw);
+            Check(menu.AccentIndex == 0 && menu.Volume == 70, "Mist reset did not restore state.");
+            DragAndClose(h, menu, Draw);
+        }
+    }
+
     public static void Vanta()
     {
         foreach (var scale in new[] { 1f, 1.5f })
