@@ -1,5 +1,13 @@
 # Validation of the initial implementation
 
+Linux support for captures (2026-11-13, Ubuntu 24.04 x64, .NET SDK 8.0.134, Xvfb with Mesa llvmpipe). **Not** run on Windows:
+
+- The adapter and test executable now target `net8.0`; the harness and host capture write PNGs through a small built-in encoder, and default fonts come from `HostFonts` (Segoe UI on Windows, here Inter). `dotnet build Atelier.ImGui.sln -c Release` built every project with zero warnings and no extra switches; the samples remain `net8.0-windows`.
+- `dotnet run --project tests/Atelier.ImGui.Tests -c Release`: all 21 behavior groups passed and wrote 87 captures.
+- `--host` under `xvfb-run`, for the default menu and `--kestrel`, `--vanta`, `--redline`, `--cinder` and `--game --effects`: each rendered 45 frames through the OpenGL 3.3 renderer, captured its framebuffer and closed cleanly. The default capture is now `native-host.png` (was `windows-host.png`).
+- Inspected: `overview.png`, `native-host.png`, `kestrel-native.png`, `cinder-native.png`. Cinder used the host font because Tahoma is absent.
+- Not verified: the Windows build and runs after these changes (the Windows code paths are unchanged but were not executed), the Linux window drag and centering paths (no interactive session), and real GPU drivers or Wayland.
+
 Kestrel review follow-up (2026-11-09, same Linux setup). Fixes: the docs no longer poll `ImGuiKey.None`, and `KestrelMenu.HandleMenuKey()` skips unbound keys. Closing the menu cancels key capture. Deleting the active profile leaves values unassociated. `KestrelSettings.Normalize()` repairs short category arrays, out-of-range option indices and unbindable keys before drawing. Import rejects those values, and `Differences` now uses the same exact comparison as `SameAs`. A new `Validation` group, plus additions to `Controls` (M4 capture, Escape inside the name field, close during capture, host hotkey), pass in the Linux harness alongside the existing groups. `OverlayApp` now forwards mouse buttons 4 and 5; that adapter change is compile-checked only, because the Windows/OpenGL host was not run.
 
 Kestrel addition (2026-11-09, Linux x64, .NET SDK 8.0.133, ImGui.NET 1.91.6.1 with its bundled `linux-x64` cimgui). Unlike the entries below, this was **not** run on Windows:

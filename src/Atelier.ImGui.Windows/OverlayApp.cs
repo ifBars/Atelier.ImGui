@@ -22,7 +22,8 @@ public sealed record OverlayOptions
 }
 
 /// <summary>
-/// Optional Windows/OpenGL host. Creates a topmost borderless native window containing only the menu.
+/// Optional OpenGL host. Creates a topmost borderless native window containing only the menu.
+/// Windows is the supported target; Linux/X11 runs the same renderer at 100% scale unless Scale is set.
 /// Existing hosts need only Atelier.ImGui and should keep their renderer and input backend.
 /// </summary>
 public sealed class OverlayApp : IDisposable
@@ -37,7 +38,7 @@ public sealed class OverlayApp : IDisposable
     private IntPtr context;
     private int frames;
     private bool dragging;
-    private Point dragStart;
+    private Vector2D<int> dragStart;
     private Vector2D<int> windowStart;
     private bool disposed;
 
@@ -61,12 +62,13 @@ public sealed class OverlayApp : IDisposable
             this.options.Size.X <= 0 || this.options.Size.Y <= 0 ||
             this.options.Scale is { } requested && (!float.IsFinite(requested) || requested <= 0))
             throw new ArgumentOutOfRangeException(nameof(options));
-        var scale = this.options.Scale ?? Native.GetDpiForSystem() / 96f;
+        var scale = this.options.Scale ?? (OperatingSystem.IsWindows() ? Native.GetDpiForSystem() / 96f : 1f);
         var size = new Vector2D<int>((int)(this.options.Size.X * scale), (int)(this.options.Size.Y * scale));
         var settings = WindowOptions.Default;
         settings.Title = title;
         settings.Size = size;
-        settings.Position = new((Native.GetSystemMetrics(0) - size.X) / 2, (Native.GetSystemMetrics(1) - size.Y) / 2);
+        if (OperatingSystem.IsWindows())
+            settings.Position = new((Native.GetSystemMetrics(0) - size.X) / 2, (Native.GetSystemMetrics(1) - size.Y) / 2);
         settings.WindowBorder = WindowBorder.Hidden;
         settings.TopMost = true;
         settings.TransparentFramebuffer = true;
@@ -92,14 +94,13 @@ public sealed class OverlayApp : IDisposable
         var io = ImGui.GetIO();
         io.NativePtr->IniFilename = null;
         io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
-        var path = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
-        var regular = Path.Combine(path, "segoeui.ttf");
-        var bold = Path.Combine(path, "seguisb.ttf");
-        if (File.Exists(regular))
+        if (!OperatingSystem.IsWindows() && window.Monitor is { } monitor)
+            window.Position = monitor.Bounds.Origin + (monitor.Bounds.Size - window.Size) / 2;
+        if (HostFonts.Find() is { } font)
         {
-            var body = io.Fonts.AddFontFromFileTTF(regular, 16 * scale);
-            ui.Fonts = new(body, io.Fonts.AddFontFromFileTTF(File.Exists(bold) ? bold : regular, 25 * scale),
-                io.Fonts.AddFontFromFileTTF(regular, 13 * scale));
+            var body = io.Fonts.AddFontFromFileTTF(font.Regular, 16 * scale);
+            ui.Fonts = new(body, io.Fonts.AddFontFromFileTTF(font.Bold, 25 * scale),
+                io.Fonts.AddFontFromFileTTF(font.Regular, 13 * scale));
             io.NativePtr->FontDefault = body.NativePtr;
         }
         else io.Fonts.AddFontDefault();
@@ -118,7 +119,7 @@ public sealed class OverlayApp : IDisposable
         menu = createMenu(ui, images);
         menu.DragStarted += () =>
         {
-            Native.GetCursorPos(out dragStart);
+            if (!TryGetCursor(out dragStart)) return;
             windowStart = window.Position;
             dragging = true;
         };
@@ -130,9 +131,8 @@ public sealed class OverlayApp : IDisposable
         ImGui.SetCurrentContext(context);
         if (dragging)
         {
-            if ((Native.GetAsyncKeyState(1) & 0x8000) == 0) dragging = false;
-            else if (Native.GetCursorPos(out var cursor))
-                window.Position = windowStart + new Vector2D<int>(cursor.X - dragStart.X, cursor.Y - dragStart.Y);
+            if (!LeftButtonHeld()) dragging = false;
+            else if (TryGetCursor(out var cursor)) window.Position = windowStart + cursor - dragStart;
         }
         var io = ImGui.GetIO();
         io.DisplaySize = new(window.Size.X, window.Size.Y);
@@ -161,6 +161,25 @@ public sealed class OverlayApp : IDisposable
             window.Close();
         }
     }
+
+    // Screen-space cursor. Off Windows it is derived from the window-relative position reported by the input backend.
+    private bool TryGetCursor(out Vector2D<int> cursor)
+    {
+        cursor = default;
+        if (OperatingSystem.IsWindows())
+        {
+            if (!Native.GetCursorPos(out var point)) return false;
+            cursor = new(point.X, point.Y);
+            return true;
+        }
+        if (input?.Mice.FirstOrDefault() is not { } mouse) return false;
+        cursor = window.Position + new Vector2D<int>((int)mouse.Position.X, (int)mouse.Position.Y);
+        return true;
+    }
+
+    private bool LeftButtonHeld() => OperatingSystem.IsWindows()
+        ? (Native.GetAsyncKeyState(1) & 0x8000) != 0
+        : input?.Mice.FirstOrDefault()?.IsButtonPressed(MouseButton.Left) == true;
 
     private static void KeyEvent(IKeyboard keyboard, Key key, bool down)
     {
